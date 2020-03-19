@@ -46,10 +46,9 @@ void ftpHandler(int connfd)
 
             if (fdin == -1) {
                 printf("file does not exists !!!\n");
-                Rio_writen(connfd, "550 DOES_NOT_EXISTS", 19);
+                Rio_writen(connfd, "550 DOES_NOT_EXISTS\n", 20);
             } else {
                 printf("file exists, sending...\n");
-                //Rio_writen(connfd, "200 OK", 6);
                 // Mise en place du buffer
                 rio_readinitb(&bufferRio, fdin); 
                 while ((n = Rio_readnb(&bufferRio, buf, MAXLINE)) > 0) {

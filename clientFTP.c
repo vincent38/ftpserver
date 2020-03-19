@@ -68,18 +68,31 @@ int main(int argc, char **argv)
         // Get the filename
         fdin = Open(okFileName, O_WRONLY | O_APPEND | O_CREAT, 0644);
         //end of section
+        char code[4];
 
         totalSize = 0;
         start = clock();
         while ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
             //Fputs(buf, stdout);
-            totalSize += rio_writen(fdin, buf, n);
+            strncpy(code, buf, 3);
+            if (strcmp(code, "550") == 0){
+                printf("File does not exists remotely ! Closing connection...\n");
+                Close(clientfd);
+                exit(0);
+            } else {
+                totalSize += rio_writen(fdin, buf, n);
+            }
         }
         end = clock();
         Close(fdin);
         cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
         printf("Transfer succesfully complete.\n");
-        printf("%ld bytes received in %f seconds (Z Kbytes/s)\n", totalSize, cpu_time_used);
+        ssize_t bandwidth = (totalSize/1000) / cpu_time_used;
+        if (bandwidth > 0){
+            printf("%ld bytes received in %f seconds (%ld Kbytes/s)\n", totalSize, cpu_time_used, bandwidth);
+        } else {
+            printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
+        }
         break;
     }
     Close(clientfd);
