@@ -2,7 +2,59 @@
  * echoclient.c - An echo client
  */
 #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include "csapp.h"
+
+char** str_split(char* a_str, const char a_delim)
+{
+    char** result    = 0;
+    size_t count     = 0;
+    char* tmp        = a_str;
+    char* last_comma = 0;
+    char delim[2];
+    delim[0] = a_delim;
+    delim[1] = 0;
+
+    /* Count how many elements will be extracted. */
+    while (*tmp)
+    {
+        if (a_delim == *tmp)
+        {
+            count++;
+            last_comma = tmp;
+        }
+        tmp++;
+    }
+
+    /* Add space for trailing token. */
+    count += last_comma < (a_str + strlen(a_str) - 1);
+
+    /* Add space for terminating null string so caller
+       knows where the list of returned strings ends. */
+    count++;
+
+    result = malloc(sizeof(char*) * count);
+
+    if (result)
+    {
+        size_t idx  = 0;
+        char* token = strtok(a_str, delim);
+
+        while (token)
+        {
+            assert(idx < count);
+            *(result + idx++) = strdup(token);
+            token = strtok(0, delim);
+        }
+        assert(idx == count - 1);
+        *(result + idx) = 0;
+    }
+
+    return result;
+}
 
 int main(int argc, char **argv)
 {
@@ -41,59 +93,54 @@ int main(int argc, char **argv)
 
     printf("ftp> ");
     while (Fgets(buf, MAXLINE, stdin) != NULL) {
-        Rio_writen(clientfd, buf, strlen(buf));
+        char **cmd = str_split(buf, ' ');
 
-        char okFileName[strlen(buf)+1];
+        if (strcmp(cmd[0], "get") == 0){
 
-        for (int i = 0; i < strlen(buf); i++){
-            okFileName[i] = buf[i];
-        }
-        okFileName[strcspn(okFileName,"\r\n")] = 0;
+            Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
 
-        /*if ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
-            char *r = strtok(buf, " ");
-            char *array[2];
-            int i = 0;
-            while (r != NULL)
-            {
-                array[i++] = r;
-                r = strtok (NULL, " ");
+            // Get the filename
+            char okFileName[strlen(cmd[1])];
+
+            for (int i = 0; i < strlen(cmd[1]); i++){
+                okFileName[i] = cmd[1][i];
             }
-            if (strcmp(array[0], "550") == 0) {
-                printf("File does not exists on server.\n");
+            okFileName[strcspn(okFileName,"\r\n")] = 0;
+            fdin = Open(okFileName, O_WRONLY | O_CREAT, 0644);
+            //end of section
+            char code[4];
+
+            totalSize = 0;
+            start = clock();
+            while ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
+                //Fputs(buf, stdout);
+                strncpy(code, buf, 3);
+                if (strcmp(code, "550") == 0){
+                    printf("File does not exists remotely ! Closing connection...\n");
+                    Close(clientfd);
+                    exit(0);
+                } else {
+                    totalSize += rio_writen(fdin, buf, n);
+                }
             }
-        }*/
-
-
-        // Get the filename
-        fdin = Open(okFileName, O_WRONLY | O_APPEND | O_CREAT, 0644);
-        //end of section
-        char code[4];
-
-        totalSize = 0;
-        start = clock();
-        while ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
-            //Fputs(buf, stdout);
-            strncpy(code, buf, 3);
-            if (strcmp(code, "550") == 0){
-                printf("File does not exists remotely ! Closing connection...\n");
-                Close(clientfd);
-                exit(0);
+            end = clock();
+            Close(fdin);
+            cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+            printf("Transfer succesfully complete.\n");
+            ssize_t bandwidth = (totalSize/1000) / cpu_time_used;
+            if (bandwidth > 0){
+                printf("%ld bytes received in %f seconds (%ld Kbytes/s)\n", totalSize, cpu_time_used, bandwidth);
             } else {
-                totalSize += rio_writen(fdin, buf, n);
+                printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
             }
-        }
-        end = clock();
-        Close(fdin);
-        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-        printf("Transfer succesfully complete.\n");
-        ssize_t bandwidth = (totalSize/1000) / cpu_time_used;
-        if (bandwidth > 0){
-            printf("%ld bytes received in %f seconds (%ld Kbytes/s)\n", totalSize, cpu_time_used, bandwidth);
+            break;
+        } else if (strcmp(cmd[0], "quit\n") == 0) {
+            printf("Bye.\n");
+            break;
         } else {
-            printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
+            printf("Unknown command !\n");
+            printf("ftp> ");
         }
-        break;
     }
     Close(clientfd);
     exit(0);

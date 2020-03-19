@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 void ftpHandler(int connfd)
 {
@@ -23,9 +24,11 @@ void ftpHandler(int connfd)
     size_t n;
     rio_t bufferRio;
     int fdin;
-    char buf[MAXLINE];
+    size_t CHUNK_SIZE = 4092;
+    char buf[CHUNK_SIZE];
     char fileName[MAXLINE];
     rio_t rio;
+    struct stat st;
 
         Rio_readinitb(&rio, connfd);
 
@@ -48,10 +51,12 @@ void ftpHandler(int connfd)
                 printf("file does not exists !!!\n");
                 Rio_writen(connfd, "550 DOES_NOT_EXISTS\n", 20);
             } else {
-                printf("file exists, sending...\n");
+                stat(okFileName, &st);
+                long int chunks = st.st_size / CHUNK_SIZE;
+                printf("file exists, sending %ld bytes in %ld chunks...\n", st.st_size, chunks);
                 // Mise en place du buffer
                 rio_readinitb(&bufferRio, fdin); 
-                while ((n = Rio_readnb(&bufferRio, buf, MAXLINE)) > 0) {
+                while ((n = Rio_readnb(&bufferRio, buf, CHUNK_SIZE)) > 0) {
                     Rio_writen(connfd, buf, n);
                 }
                 close(fdin);
