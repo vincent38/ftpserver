@@ -61,8 +61,12 @@ int main(int argc, char **argv)
     int clientfd, port;
     char *host, buf[MAXLINE];
     rio_t rio;
+    rio_t bufferRio;
     int fdin;
+    int fdstat;
     size_t n;
+    struct stat st;
+    size_t CHUNK_SIZE = 10000;
 
     clock_t start, end;
     double cpu_time_used;
@@ -93,12 +97,12 @@ int main(int argc, char **argv)
 
     printf("ftp> ");
     while (Fgets(buf, MAXLINE, stdin) != NULL) {
+
+        
+
         char **cmd = str_split(buf, ' ');
 
         if (strcmp(cmd[0], "get") == 0){
-
-            Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
-
             // Get the filename
             char okFileName[strlen(cmd[1])];
 
@@ -106,17 +110,28 @@ int main(int argc, char **argv)
                 okFileName[i] = cmd[1][i];
             }
             okFileName[strcspn(okFileName,"\r\n")] = 0;
+
+            Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
+
             fdin = Open(okFileName, O_WRONLY | O_CREAT, 0644);
+            
+            // Create our temp file - holds the name of the processed file
+            fdstat = Open("status.tmp", O_RDWR | O_CREAT, 0644);
+            rio_writen(fdstat, cmd[1], strlen(cmd[1]));
+            Close(fdstat);
+
             //end of section
             char code[4];
 
             totalSize = 0;
             start = clock();
-            while ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
+            
+            while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
                 //Fputs(buf, stdout);
                 strncpy(code, buf, 3);
                 if (strcmp(code, "550") == 0){
                     printf("File does not exists remotely ! Closing connection...\n");
+                    remove("status.tmp");
                     Close(clientfd);
                     exit(0);
                 } else {
@@ -133,7 +148,51 @@ int main(int argc, char **argv)
             } else {
                 printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
             }
+            remove("status.tmp");
             break;
+        } else if (strcmp(cmd[0], "recover\n") == 0) {
+            printf("Check for file lock...\n");
+            // Check if there is already a lock - if yes, a previous dl was interrupted !
+            fdstat = open("status.tmp", O_RDONLY, 0);
+            if (fdstat != -1) {
+                printf("File lock status.tmp found ! Recovering file...\n");
+                // There is a lock
+                rio_readinitb(&bufferRio, fdstat); 
+                if ((n = Rio_readlineb(&bufferRio, buf, MAXLINE)) > 0) {
+                    // Get the filename
+                    char okFileName[n];
+
+                    for (int i = 0; i < n; i++){
+                        okFileName[i] = buf[i];
+                    }
+
+                    Rio_writen(clientfd, buf, strlen(buf));
+                    
+                    okFileName[strcspn(okFileName,"\r\n")] = 0;
+
+                    stat(okFileName, &st);
+                    printf("already has %ld bytes of file %s\n", st.st_size, okFileName);
+                    totalSize = 0;
+
+                    fdin = Open(okFileName, O_WRONLY|O_APPEND, 0644);
+                    
+                    while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
+                        totalSize += n;
+                        if (totalSize > st.st_size) {
+                            //printf("Current : %ld - Size on mem : %ld\n", totalSize, st.st_size);
+                            rio_writen(fdin, buf, n);
+                        }
+                    }
+                    printf("Situation recovered ! %ld bytes downloaded to complete the file.\n", totalSize-st.st_size);
+                    Close(fdin);
+                    remove("status.tmp");
+                }
+                close(fdstat);
+                break;
+            } else {
+                printf("Nothing to recover, or the file status.tmp has been deleted by another application.\n");
+                break;
+            }
         } else if (strcmp(cmd[0], "quit\n") == 0) {
             printf("Bye.\n");
             break;

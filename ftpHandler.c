@@ -24,7 +24,7 @@ void ftpHandler(int connfd)
     size_t n;
     rio_t bufferRio;
     int fdin;
-    size_t CHUNK_SIZE = 4092;
+    size_t CHUNK_SIZE = 10000;
     char buf[CHUNK_SIZE];
     char fileName[MAXLINE];
     rio_t rio;
