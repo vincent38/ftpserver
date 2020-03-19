@@ -37,7 +37,7 @@ void crush(int sig){
 
 int main(int argc, char **argv)
 {
-    int listenfd, connfd, port;
+    int listenfd, connfd;
     pid_t handler;
     socklen_t clientlen;
     struct sockaddr_in clientaddr;
@@ -46,11 +46,11 @@ int main(int argc, char **argv)
 
     signal(SIGINT, crush);
     
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <port>\n", argv[0]);
+    if (argc != 1) {
+        fprintf(stderr, "usage: %s\n", argv[0]);
         exit(0);
     }
-    port = atoi(argv[1]);
+    //port = atoi(argv[1]);
     
     clientlen = (socklen_t)sizeof(clientaddr);
 
@@ -72,8 +72,8 @@ int main(int argc, char **argv)
                 Inet_ntop(AF_INET, &clientaddr.sin_addr, client_ip_string,
                         INET_ADDRSTRLEN);
                 
-                printf("server connected to %s (%s)\n", client_hostname,
-                    client_ip_string);
+                printf("server connected to %s (%s) - process handler %d\n", client_hostname,
+                    client_ip_string, i);
 
                 ftpHandler(connfd);
 

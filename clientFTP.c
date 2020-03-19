@@ -1,6 +1,7 @@
 /*
  * echoclient.c - An echo client
  */
+#include <time.h>
 #include "csapp.h"
 
 int main(int argc, char **argv)
@@ -8,13 +9,19 @@ int main(int argc, char **argv)
     int clientfd, port;
     char *host, buf[MAXLINE];
     rio_t rio;
+    int fdin;
+    size_t n;
 
-    if (argc != 3) {
-        fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
+    clock_t start, end;
+    double cpu_time_used;
+    ssize_t totalSize;
+    
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s <host>\n", argv[0]);
         exit(0);
     }
     host = argv[1];
-    port = atoi(argv[2]);
+    port = 2121;
 
     /*
      * Note that the 'host' can be a name or an IP address.
@@ -28,15 +35,51 @@ int main(int argc, char **argv)
      * and the server OS ... but it is possible that the server application
      * has not yet called "Accept" for this connection
      */
-    printf("client connected to server OS\n"); 
+    printf("Connected to %s\n", host); 
     
     Rio_readinitb(&rio, clientfd);
 
+    printf("ftp> ");
     while (Fgets(buf, MAXLINE, stdin) != NULL) {
         Rio_writen(clientfd, buf, strlen(buf));
-        while (Rio_readlineb(&rio, buf, MAXLINE) > 0) {
-            Fputs(buf, stdout);
+
+        char okFileName[strlen(buf)+1];
+
+        for (int i = 0; i < strlen(buf); i++){
+            okFileName[i] = buf[i];
         }
+        okFileName[strcspn(okFileName,"\r\n")] = 0;
+
+        /*if ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
+            char *r = strtok(buf, " ");
+            char *array[2];
+            int i = 0;
+            while (r != NULL)
+            {
+                array[i++] = r;
+                r = strtok (NULL, " ");
+            }
+            if (strcmp(array[0], "550") == 0) {
+                printf("File does not exists on server.\n");
+            }
+        }*/
+
+
+        // Get the filename
+        fdin = Open(okFileName, O_WRONLY | O_APPEND | O_CREAT, 0644);
+        //end of section
+
+        totalSize = 0;
+        start = clock();
+        while ((n = Rio_readnb(&rio, buf, MAXLINE)) > 0) {
+            //Fputs(buf, stdout);
+            totalSize += rio_writen(fdin, buf, n);
+        }
+        end = clock();
+        Close(fdin);
+        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("Transfer succesfully complete.\n");
+        printf("%ld bytes received in %f seconds (Z Kbytes/s)\n", totalSize, cpu_time_used);
         break;
     }
     Close(clientfd);
