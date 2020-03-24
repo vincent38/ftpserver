@@ -23,7 +23,8 @@ void crush(int sig){
 	int status;
 	pid_t pid;
 
-    for (int i = 0; i < NPROC; i++) {
+    int i;
+    for (i = 0; i < NPROC; i++) {
         kill(myProcess[i], SIGINT);
     }
 
@@ -58,7 +59,8 @@ int main(int argc, char **argv)
     clientlen = (socklen_t)sizeof(clientaddr);
 
     listenfd = Open_listenfd(4266);
-    for (int i = 0; i < NPROC; i++) {
+    int i;
+    for (i = 0; i < NPROC; i++) {
 
         socketpair(PF_LOCAL, SCM_RIGHTS, 0, myfd[i]);
         
