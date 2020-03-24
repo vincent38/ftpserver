@@ -33,7 +33,7 @@ void ftpHandler(int connfd)
 
         Rio_readinitb(&rio, connfd);
 
-        while ((n = Rio_readlineb(&rio, cmd, MAXLINE)) > 0){
+        if ((n = Rio_readlineb(&rio, cmd, MAXLINE)) > 0){
             // Catch the command that we want to do
             printf("server received %u bytes\n", (unsigned int)n);
             char okCmd[n+1];

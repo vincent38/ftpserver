@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
                 ftpHandler(received_file_descriptor);
 
-                //Close(received_file_descriptor);
+                Close(received_file_descriptor);
             } while(1);
 
         } else {
