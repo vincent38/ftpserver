@@ -107,8 +107,8 @@ int main(int argc, char **argv)
                 Rio_writen(clientfd, "GET\n", 4);
                 // Get the filename
                 char okFileName[strlen(cmd[1])];
-
-                for (int i = 0; i < strlen(cmd[1]); i++){
+                int i;
+                for (i = 0; i < strlen(cmd[1]); i++){
                     okFileName[i] = cmd[1][i];
                 }
                 okFileName[strcspn(okFileName,"\r\n")] = 0;
@@ -168,8 +168,9 @@ int main(int argc, char **argv)
                         Rio_writen(clientfd, "REC\n", 4);
                         // Get the filename
                         char okFileName[n];
+                        int i;
 
-                        for (int i = 0; i < n; i++){
+                        for (i = 0; i < n; i++){
                             okFileName[i] = buf[i];
                         }
 
