@@ -33,7 +33,7 @@ void ftpHandler(int connfd)
 
         Rio_readinitb(&rio, connfd);
 
-        while ((n = Rio_readlineb(&rio, cmd, MAXLINE)) != 0){
+        while ((n = Rio_readlineb(&rio, cmd, MAXLINE)) > 0){
             // Catch the command that we want to do
             printf("server received %u bytes\n", (unsigned int)n);
             char okCmd[n+1];
@@ -76,6 +76,8 @@ void ftpHandler(int connfd)
                             Lseek(fdin, part, SEEK_SET);
                         }
                     }
+
+                    Rio_writen(connfd, "100 STARTING_TRANSFER\n", 22);
                     
                     // Mise en place du buffer
                     rio_readinitb(&bufferRio, fdin); 

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         exit(0);
     }
     host = argv[1];
-    port = 2121;
+    port = 4266;
 
     /*
      * Note that the 'host' can be a name or an IP address.
@@ -94,9 +94,9 @@ int main(int argc, char **argv)
     printf("Connected to %s\n", host); 
     
     Rio_readinitb(&rio, clientfd);
-
+    printf("ftp> ");
+    
     do {
-        printf("ftp> ");
         while (Fgets(buf, MAXLINE, stdin) != NULL) {
 
             
@@ -127,18 +127,22 @@ int main(int argc, char **argv)
 
                 totalSize = 0;
                 start = clock();
-                
-                while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
-                    //Fputs(buf, stdout);
+
+                if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
                     strncpy(code, buf, 3);
                     if (strcmp(code, "550") == 0){
                         printf("File does not exists remotely ! Closing connection...\n");
                         remove("status.tmp");
                         Close(clientfd);
                         exit(0);
-                    } else {
-                        totalSize += rio_writen(fdin, buf, n);
+                    } else if (strcmp(code, "100") == 0) {
+                        printf("Server replied, receiving file...\n");
                     }
+                }
+                
+                while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
+                    //Fputs(buf, stdout);
+                    totalSize += rio_writen(fdin, buf, n);
                 }
                 end = clock();
                 Close(fdin);
@@ -151,6 +155,7 @@ int main(int argc, char **argv)
                     printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
                 }
                 remove("status.tmp");
+                //break;
             } else if (strcmp(cmd[0], "recover\n") == 0) {
                 printf("Check for file lock...\n");
                 // Check if there is already a lock - if yes, a previous dl was interrupted !
@@ -178,22 +183,35 @@ int main(int argc, char **argv)
                         Rio_writen(clientfd, buf, strlen(buf));
                         Rio_writen(clientfd, &(st.st_size), sizeof(size_t));
 
+                        char code[4];
+
+                        if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
+                            strncpy(code, buf, 3);
+                            if (strcmp(code, "550") == 0){
+                                printf("File does not exists remotely ! Closing connection...\n");
+                                remove("status.tmp");
+                                Close(clientfd);
+                                exit(0);
+                            } else if (strcmp(code, "100") == 0) {
+                                printf("Server replied, receiving file...\n");
+                            }
+                        }
+
                         fdin = Open(okFileName, O_WRONLY|O_APPEND, 0644);
                         
                         while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
                             totalSize += n;
-                            //if (totalSize > st.st_size) {
-                                //printf("Current : %ld - Size on mem : %ld\n", totalSize, st.st_size);
-                                rio_writen(fdin, buf, n);
-                            //}
+                            rio_writen(fdin, buf, n);
                         }
                         printf("Situation recovered ! %ld bytes downloaded to complete the file.\n", totalSize-st.st_size);
                         Close(fdin);
                         remove("status.tmp");
                     }
                     close(fdstat);
+                    //break;
                 } else {
                     printf("Nothing to recover, or the file status.tmp has been deleted by another application.\n");
+                    //break;
                 }
             } else if (strcmp(cmd[0], "bye\n") == 0) {
                 printf("Bye.\n");
@@ -202,9 +220,8 @@ int main(int argc, char **argv)
             } else {
                 printf("Unknown command !\n");
             }
-            break;
+            printf("ftp> ");
         }
     } while(1);
 
-    exit(0);
 }
