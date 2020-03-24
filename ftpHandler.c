@@ -37,8 +37,9 @@ void ftpHandler(int connfd)
             // Catch the command that we want to do
             printf("server received %u bytes\n", (unsigned int)n);
             char okCmd[n+1];
+            int i;
 
-            for (int i = 0; i < n; i++){
+            for (i = 0; i < n; i++){
                 okCmd[i] = cmd[i];
             }
             okCmd[strcspn(okCmd,"\n")] = 0;
@@ -49,9 +50,10 @@ void ftpHandler(int connfd)
                 // Catch the file name (will change shortly)
                 printf("server received %u bytes\n", (unsigned int)n);
                 char okFileName[n+1];
+                int j;
 
-                for (int i = 0; i < n; i++){
-                    okFileName[i] = fileName[i];
+                for (j = 0; j < n; j++){
+                    okFileName[j] = fileName[j];
                 }
                 okFileName[strcspn(okFileName,"\r\n")] = 0;
 
