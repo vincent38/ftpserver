@@ -143,6 +143,7 @@ int main(int argc, char **argv)
                 while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
                     //Fputs(buf, stdout);
                     totalSize += rio_writen(fdin, buf, n);
+                    //printf("Wrote %ld", totalSize);
                 }
                 end = clock();
                 Close(fdin);
@@ -214,8 +215,43 @@ int main(int argc, char **argv)
                     printf("Nothing to recover, or the file status.tmp has been deleted by another application.\n");
                     //break;
                 }
+            } else if (strcmp(cmd[0], "put") == 0) {
+
+                // Get the filename
+                char okFileName[strlen(cmd[1])];
+                int i;
+                for (i = 0; i < strlen(cmd[1]); i++){
+                    okFileName[i] = cmd[1][i];
+                }
+                okFileName[strcspn(okFileName,"\r\n")] = 0;
+
+                    printf("Putting file %s on remote server...\n", okFileName);
+
+                    // Ouverture du fichier
+                    fdin = open(okFileName, O_RDONLY, 0);
+
+                    if (fdin == -1) {
+                        printf("file does not exists !!!\n");
+                        //Rio_writen(connfd, "550 DOES_NOT_EXISTS\n", 20);
+                    } else {
+                        stat(okFileName, &st);
+                        long int chunks = st.st_size / CHUNK_SIZE;
+                        printf("file exists, sending %ld bytes in %ld chunks...\n", st.st_size, chunks);
+
+                        //Rio_writen(connfd, "100 STARTING_TRANSFER\n", 22);
+                        Rio_writen(clientfd, "PUT\n", 4);
+                        Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
+                        // Mise en place du buffer
+                        rio_readinitb(&bufferRio, fdin); 
+                        while ((n = Rio_readnb(&bufferRio, buf, CHUNK_SIZE)) > 0) {
+                            Rio_writen(clientfd, buf, n);
+                        }
+                        close(fdin);
+                    }
+            
             } else if (strcmp(cmd[0], "bye\n") == 0) {
                 printf("Bye.\n");
+                Rio_writen(clientfd, "BYE\n", 4);
                 Close(clientfd);
                 exit(0);
             } else {

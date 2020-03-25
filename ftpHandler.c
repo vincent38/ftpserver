@@ -46,48 +46,73 @@ void ftpHandler(int connfd)
 
             printf("%s\n",okCmd);
             
-            if ((n = Rio_readlineb(&rio, fileName, MAXLINE)) != 0){
-                // Catch the file name (will change shortly)
-                printf("server received %u bytes\n", (unsigned int)n);
-                char okFileName[n+1];
-                int j;
+            if (strcmp(okCmd, "GET") == 0 || strcmp(okCmd, "REC") == 0) {
+                if ((n = Rio_readlineb(&rio, fileName, MAXLINE)) != 0){
+                    // Catch the file name (will change shortly)
+                    printf("server received %u bytes\n", (unsigned int)n);
+                    char okFileName[n+1];
+                    int j;
 
-                for (j = 0; j < n; j++){
-                    okFileName[j] = fileName[j];
-                }
-                okFileName[strcspn(okFileName,"\r\n")] = 0;
+                    for (j = 0; j < n; j++){
+                        okFileName[j] = fileName[j];
+                    }
+                    okFileName[strcspn(okFileName,"\r\n")] = 0;
 
-                printf("asking for file : %s\n", okFileName);
+                    printf("asking for file : %s\n", okFileName);
 
-                // Ouverture du fichier
-                fdin = open(okFileName, O_RDONLY, 0);
+                    // Ouverture du fichier
+                    fdin = open(okFileName, O_RDONLY, 0);
 
-                if (fdin == -1) {
-                    printf("file does not exists !!!\n");
-                    Rio_writen(connfd, "550 DOES_NOT_EXISTS\n", 20);
-                } else {
-                    stat(okFileName, &st);
-                    long int chunks = st.st_size / CHUNK_SIZE;
-                    printf("file exists, sending %ld bytes in %ld chunks...\n", st.st_size, chunks);
+                    if (fdin == -1) {
+                        printf("file does not exists !!!\n");
+                        Rio_writen(connfd, "550 DOES_NOT_EXISTS\n", 20);
+                    } else {
+                        stat(okFileName, &st);
+                        long int chunks = st.st_size / CHUNK_SIZE;
+                        printf("file exists, sending %ld bytes in %ld chunks...\n", st.st_size, chunks);
 
-                    if(strcmp(okCmd, "REC") == 0){
-                        size_t part;
+                        if(strcmp(okCmd, "REC") == 0){
+                            size_t part;
 
-                        if ((n = Rio_readlineb(&rio, &part, sizeof(size_t))) != 0){
-                            printf("Looking for part of file starting %zu\n", part);
-                            Lseek(fdin, part, SEEK_SET);
+                            if ((n = Rio_readlineb(&rio, &part, sizeof(size_t))) != 0){
+                                printf("Looking for part of file starting %zu\n", part);
+                                Lseek(fdin, part, SEEK_SET);
+                            }
                         }
-                    }
 
-                    Rio_writen(connfd, "100 STARTING_TRANSFER\n", 22);
-                    
-                    // Mise en place du buffer
-                    rio_readinitb(&bufferRio, fdin); 
-                    while ((n = Rio_readnb(&bufferRio, buf, CHUNK_SIZE)) > 0) {
-                        Rio_writen(connfd, buf, n);
+                        Rio_writen(connfd, "100 STARTING_TRANSFER\n", 22);
+                        
+                        // Mise en place du buffer
+                        rio_readinitb(&bufferRio, fdin); 
+                        while ((n = Rio_readnb(&bufferRio, buf, CHUNK_SIZE)) > 0) {
+                            Rio_writen(connfd, buf, n);
+                        }
+                        close(fdin);
                     }
-                    close(fdin);
+                } 
+            } else if (strcmp(okCmd, "PUT") == 0) {
+                if ((n = Rio_readlineb(&rio, fileName, MAXLINE)) != 0){
+                    char okFileName[n+1];
+                    int j;
+
+                    for (j = 0; j < n; j++){
+                        okFileName[j] = fileName[j];
+                    }
+                    okFileName[strcspn(okFileName,"\r\n")] = 0;
+
+                    fdin = Open(okFileName, O_WRONLY | O_CREAT, 0644);
+
+                    while ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
+                        //Fputs(buf, stdout);
+                        rio_writen(fdin, buf, n);
+                        //printf("Wrote %ld", totalSize);
+                    }
+                    Close(fdin);
+                    printf("Upload succesfully complete.\n");
                 }
+            
+            } else {
+                    printf("Unknown command...\n");
             }
         }
         printf("Closing...\n");
