@@ -7,8 +7,8 @@
 #.PRECIOUS: %.o
 
 CC = gcc
-CFLAGS = -Wall -Werror
-LDFLAGS =
+CFLAGS = -Wall -Werror 
+LDFLAGS = 
 
 # Note: -lnsl does not seem to work on Mac OS but will
 # probably be necessary on Solaris for linking network-related functions 

@@ -4,7 +4,7 @@
 
 #include "csapp.h"
 
-#define NPROC 2
+#define NPROC 5
 
 #define MAX_NAME_LEN 256
 
@@ -32,7 +32,7 @@ void crush(int sig){
         if (status) {
             printf("An error occured while closing process %d\n", pid);
         } else {
-            printf("Client disconnected.");
+            printf("Process %d safely closed.\n", pid);
         }
     }
     exit(0);
