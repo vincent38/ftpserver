@@ -20,6 +20,7 @@ void crush(int sig){
     exit(0);
 }
 
+// Used to split our command string in a char**
 char** str_split(char* a_str, const char a_delim)
 {
     char** result    = 0;
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
     int fdstat;
     size_t n;
     struct stat st;
-    size_t CHUNK_SIZE = 10000;
+    size_t CHUNK_SIZE = 10000; // If edited, please make sure it is the same value in both server and client !
 
     clock_t start, end;
     double cpu_time_used;
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
         exit(0);
     }
     host = argv[1];
-    port = 4266;
+    port = 2121;
 
     /*
      * Note that the 'host' can be a name or an IP address.
@@ -109,15 +110,16 @@ int main(int argc, char **argv)
     
     Rio_readinitb(&rio, clientfd);
     printf("ftp> ");
+    // Connected, display the prompt
 
     do {
         while (Fgets(buf, MAXLINE, stdin) != NULL) {
-
-            
-
+            // Waits for a command, and breaks it into an array
             char **cmd = str_split(buf, ' ');
 
+            // Checks which functionnality we are calling
             if (strcmp(cmd[0], "get") == 0){
+                // Getting a file from remote server
                 printf("This is get\n");
                 Rio_writen(clientfd, "GET\n", 4);
                 // Get the filename
@@ -129,8 +131,9 @@ int main(int argc, char **argv)
                 okFileName[strcspn(okFileName,"\r\n")] = 0;
 
                 Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
+                // Sends the filename to the server, and waits for a anwser
                 
-                // Create our temp file - holds the name of the processed file
+                // Create our temp file - holds the name of the processed file for the recover command
                 fdstat = Open("status.tmp", O_RDWR | O_CREAT, 0644);
                 rio_writen(fdstat, cmd[1], strlen(cmd[1]));
                 Close(fdstat);
@@ -140,13 +143,18 @@ int main(int argc, char **argv)
 
                 totalSize = 0;
                 start = clock();
+                // Starts timer for status check
 
                 if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
-                    printf("%s\n", buf);
+                    //printf("%s\n", buf);
                     strncpy(code, buf, 3);
-                    printf("%s\n", code);
+                    //printf("%s\n", code);
+                    // We catch the reply code
                     if (strcmp(code, "100") == 0) {
+                        // Server is sending ! Catch size, determine how many chunks we are going to fetch + the remaining data size
                         printf("Server replied, receiving file...\n");
+
+                        // Opens the new file
                         fdin = Open(okFileName, O_WRONLY | O_CREAT, 0644);
                         size_t expectedSize;
 
@@ -155,7 +163,8 @@ int main(int argc, char **argv)
                         }
 
                         long int chunks = expectedSize / CHUNK_SIZE;
-                        
+
+                        // Catch the data
                         while (chunks > 0) {
                             if ((n = Rio_readnb(&rio, buf, CHUNK_SIZE)) > 0) {
                                 totalSize += rio_writen(fdin, buf, n);
@@ -168,6 +177,7 @@ int main(int argc, char **argv)
                         }
 
                         end = clock();
+                        // Finished, print statistics and timing
 
                         Close(fdin);
 
@@ -183,15 +193,19 @@ int main(int argc, char **argv)
                             printf("%ld bytes received in %f seconds (inf Kbytes/s)\n", totalSize, cpu_time_used);
                         }
 
+                        // We nailed it, remove the now useless status.tmp
                         remove("status.tmp");
                     } else if (strcmp(code, "550") == 0){
+                        // File does not exists, well, quit
                         printf("File does not exists remotely !\n");
                         remove("status.tmp");
                     } else {
+                        // Something happened :(
                         printf("Unknown error.\n");
                     }
                 }
             } else if (strcmp(cmd[0], "recover\n") == 0) {
+                // We are recovering a partially-downloaded file !
                 printf("Check for file lock...\n");
                 // Check if there is already a lock - if yes, a previous dl was interrupted !
                 fdstat = open("status.tmp", O_RDONLY, 0);
@@ -222,9 +236,11 @@ int main(int argc, char **argv)
                         if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
                             strncpy(code, buf, 3);
                             if (strcmp(code, "550") == 0){
+                                // Does not exists, fake lock ? We kill it anyways
                                 printf("File does not exists remotely ! Closing connection...\n");
                                 remove("status.tmp");
                             } else if (strcmp(code, "100") == 0) {
+                                // Exists, we catch up
                                 printf("Server replied, receiving file...\n");
                                 Rio_writen(clientfd, &(st.st_size), sizeof(size_t)-1);
 
@@ -254,18 +270,20 @@ int main(int argc, char **argv)
                                 Close(fdin);
                                 close(fdstat);
                                 remove("status.tmp");
+                                // Recovered, we can close the now complete file and remove the lock
                             } else {
+                                // Oh well
                                 printf("Unknown error...\n");
                             }
                         }
                     }
-                    
-                    //break;
                 } else {
+                    // Was status.tmp externally destroyed or something like that ? Anyways, there is no lock. Abort.
                     printf("Nothing to recover, or the file status.tmp has been deleted by another application.\n");
                     //break;
                 }
             } else if (strcmp(cmd[0], "put") == 0) {
+                // We are putting a file, prepare the data and the commands
                 // Get the filename
                 char okFileName[strlen(cmd[1])];
                 int i;
@@ -280,20 +298,25 @@ int main(int argc, char **argv)
                     fdin = open(okFileName, O_RDONLY, 0);
 
                     if (fdin == -1) {
+                        // File ? What file ?
                         printf("file does not exists !!!\n");
                     } else {
+                        // Nah jk, preepare it for sending
                         stat(okFileName, &st);
                         long int chunks = st.st_size / CHUNK_SIZE;
                         printf("file exists, sending %ld bytes in %ld chunks...\n", st.st_size, chunks);
 
                         Rio_writen(clientfd, "PUT\n", 4);
+                        // Ask to PUT a file
                         char code[4];
 
                         if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
                             strncpy(code, buf, 3);
                             if (strcmp(code, "530") == 0){
+                                // Not logged in, abort (server won't accept your file even if you force send it).
                                 printf("Action not permitted, account needed !\n");
                             } else if (strcmp(code, "100") == 0) {
+                                // All green on track 1
                                 Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
                                 Rio_writen(clientfd, &st.st_size, sizeof(size_t)-1);
                                 // Mise en place du buffer
@@ -301,11 +324,12 @@ int main(int argc, char **argv)
 
                                 size_t rSent = 0;
 
+                                // Same send as in the server
+
                                 while (chunks > 0) {
                                     if ((n = Rio_readnb(&bufferRio, buf, CHUNK_SIZE)) > 0) {
                                         Rio_writen(clientfd, buf, CHUNK_SIZE);
                                         rSent += n;
-                                        //printf("Sent chunk %ld\n", chunks);
                                         chunks -= 1;
                                     }
                                 }
@@ -322,6 +346,7 @@ int main(int argc, char **argv)
                     }
             
             } else if (strcmp(cmd[0], "ls\n") == 0) {
+                // Extra command - ls - prints the nb of elements and their names (at least 2 : . and ..)
                 Rio_writen(clientfd, "CMD\n", 4);
                 Rio_writen(clientfd, "LS\n", 3);
                 int count;
@@ -336,12 +361,14 @@ int main(int argc, char **argv)
                     }
                 }
             } else if (strcmp(cmd[0], "pwd\n") == 0) {
+                // Extra command - pwd - prints wd
                 Rio_writen(clientfd, "CMD\n", 4);
                 Rio_writen(clientfd, "PWD\n", 4);
                 if ((n = Rio_readnb(&rio, &reply, MAXLINE)) > 0) {
                     printf("Working dir : %s\n", reply);
                 }
             } else if (strcmp(cmd[0], "cd") == 0) {
+                // Extra command - cd - prints new wd or error
                 Rio_writen(clientfd, "CMD\n", 4);
                 Rio_writen(clientfd, "CD\n", 3);
                 Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
@@ -349,6 +376,7 @@ int main(int argc, char **argv)
                     printf("New wd : %s\n", reply);
                 }
             } else if (strcmp(cmd[0], "mkdir") == 0) {
+                // Extra command - mkdir - prints status - needs login
                 Rio_writen(clientfd, "CMD\n", 4);
                 Rio_writen(clientfd, "MKDIR\n", 6);
                 char code[4];
@@ -366,6 +394,7 @@ int main(int argc, char **argv)
                 }
                 
             } else if (strcmp(cmd[0], "rm") == 0) {
+                // Extra command - rm and rm -r - removes file/directory and prints status - needs login
                 Rio_writen(clientfd, "CMD\n", 4);
                 char code[4];
                 if (strcmp(cmd[1], "-r") == 0) {
@@ -399,6 +428,7 @@ int main(int argc, char **argv)
                 }
                 
             } else if (strcmp(cmd[0], "auth") == 0) {
+                // Login on the server - only if not yet login
                 Rio_writen(clientfd, "CMD\n", 4);
                 Rio_writen(clientfd, "AUTH\n", 5);
                 char code[4];
@@ -421,14 +451,42 @@ int main(int argc, char **argv)
                         }
                     }
                 }
+            } else if (strcmp(cmd[0], "addusr") == 0) {
+                // Create an account - login needed
+                Rio_writen(clientfd, "CMD\n", 4);
+                Rio_writen(clientfd, "ADDUSR\n", 7);
+                char code[4];
+
+                if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0){
+                    strncpy(code, buf, 3);
+                    if (strcmp(code, "530") == 0){
+                        printf("Action not permitted, account needed !\n");
+                    } else {
+                        Rio_writen(clientfd, cmd[1], strlen(cmd[1]));
+                        printf("PASSWORD FOR NEW USER> ");
+                        
+                        if (Fgets(buf, MAXLINE, stdin) != NULL) {
+                            Rio_writen(clientfd, buf, strlen(buf));
+                            if ((n = Rio_readnb(&rio, &reply, MAXLINE)) > 0) {
+                                printf("Reply : %s\n", reply);
+                            }
+                        } else {
+                            printf("Please provide a password...");
+                        }
+                    }
+                }
+                
             } else if (strcmp(cmd[0], "bye\n") == 0) {
+                // Say bye kevin
                 printf("Bye.\n");
                 Rio_writen(clientfd, "BYE\n", 4);
                 Close(clientfd);
                 exit(0);
             } else {
+                // Sorry not sorry
                 printf("Unknown command !\n");
             }
+            // Reprompt after command
             printf("ftp> ");
         }
     } while(1);

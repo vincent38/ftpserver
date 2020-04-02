@@ -4,6 +4,7 @@
 
 #include "csapp.h"
 
+// Hown much slaves shall we create
 #define NPROC 5
 
 #define MAX_NAME_LEN 256
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
     
     clientlen = (socklen_t)sizeof(clientaddr);
 
-    listenfd = Open_listenfd(4266);
+    listenfd = Open_listenfd(2121);
     int i;
     for (i = 0; i < NPROC; i++) {
 
