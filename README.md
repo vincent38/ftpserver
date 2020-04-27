@@ -7,10 +7,13 @@ Just do make on a Linux-based OS. (Windows unsupported)
 
 ## How to use it ?
 
-Drop your serverFTP on the server computer, open the port 2121, and let it run. 
+Drop your serverFTP and the .mnet files on the server computer, open the port 2121, and let it run. 
 Be sure to drop it close to the files that needs to be available.
 
 Then, open the clientFTP file on the client computer, and you will be able to use the basic commands directly.
+
+The .mnet file is the accounts database, the server needs it to run. It contains the usernames and hashed passwords.
+The storage system won't be changed as the project is provided "As it is".
 
 A test account is provided on the .mnet file. Please login with this account, create a new one through addusr (see below), and
 delete the test account for safety reasons !
