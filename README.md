@@ -3,7 +3,7 @@
 
 ## How to build ?
 
-Just do make on a Linux-based OS. (Windows unsupported)
+Just do make on a Linux-based OS. (Windows unsupported, WSL unsure, WSL 2 should be fine but not tested for now)
 
 ## How to use it ?
 
