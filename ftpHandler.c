@@ -208,7 +208,7 @@ void ftpHandler(int connfd)
                             Rio_writen(connfd, "100 STARTING_TRANSFER\n", 22);
                             long int chunks;
 
-                            // This is a rescue, specific part of fole only is to be sent
+                            // This is a rescue, specific part of file only is to be sent
                             if(strcmp(okCmd, "REC") == 0){
                                 size_t part;
 

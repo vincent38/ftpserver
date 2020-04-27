@@ -23,7 +23,6 @@ PROGS = serverFTP clientFTP
 
 
 all: $(PROGS)
-	cp clientFTP ..
 
 %.o: %.c $(INCLUDE)
 	$(CC) $(CFLAGS) $(INCLDIR) -c -o $@ $<
