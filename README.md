@@ -1,6 +1,8 @@
 # ftpserver
 :computer: A small FTP-like server (really basic though), written in C by @vincent38 and @VonShtarb (remotely)
 
+WARNING / ATTENTION : Étudiants de L3 Informatique à Grenoble, passez votre chemin ! Ce code est déjà connu des enseignants, et toute recopie peut vous pénaliser fortement.
+
 ## How to build ?
 
 Just do make on a Linux-based OS. (Windows unsupported, WSL unsure, WSL 2 should be fine but not tested for now)
